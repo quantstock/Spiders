@@ -24,7 +24,8 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
         # self.path = "/home/wenping/sean/stockScrapyMongoDB/financial_statement/"
         yearNseasonDictList = self.getYearNseasonDictList()
         if yearNseasonDictList:
-            stockIdArray = getStockIdArray(ETF=False)
+            # stockIdArray = getStockIdArray(ETF=False)
+            stockIdArray = ['2330']
             ranges = [stockIdArray, yearNseasonDictList]
             for stockId, yearNseason in itertools.product(*ranges):
                 year = yearNseason["year"]
