@@ -14,7 +14,7 @@ for i in range(1):
     import json
     import re
 
-Name = "qtlyStockFinancialStatement_New"
+Name = "qtlyStockFinancialStatement"
 
 class qtlyStockFinStat_Spider(scrapy.Spider):
     name = Name
