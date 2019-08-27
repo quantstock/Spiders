@@ -118,7 +118,7 @@ DOWNLOADER_MIDDLEWARES = {
 
 LOG_LEVEL = 'INFO'
 
-RETRY_HTTP_CODES = [500, 502, 503, 504, 400, 403, 404, 408] 
+RETRY_HTTP_CODES = [500, 502, 503, 504, 400, 403, 404, 408]
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings

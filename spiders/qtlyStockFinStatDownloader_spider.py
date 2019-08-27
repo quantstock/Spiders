@@ -21,6 +21,7 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
 
     def start_requests(self):
         self.path = "/home/wenping/stock_data/financial_statement/"
+        # self.path = "/home/wenping/sean/stockScrapyMongoDB/financial_statement/"
         yearNseasonDictList = self.getYearNseasonDictList()
         if yearNseasonDictList:
             stockIdArray = getStockIdArray(ETF=False)
@@ -28,7 +29,7 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
             for stockId, yearNseason in itertools.product(*ranges):
                 year = yearNseason["year"]
                 season = yearNseason["season"]
-                url = 'http://mops.twse.com.tw/server-java/t164sb01?step=1&CO_ID=%s&SYEAR=%s&SSEASON=%s&REPORT_ID=C'%(stockId, year, season)
+                url = 'https://mops.twse.com.tw/server-java/t164sb01?step=1&CO_ID=%s&SYEAR=%s&SSEASON=%s&REPORT_ID=C'%(stockId, year, season)
                 yield scrapy.Request(url, callback = self.parse , errback = lambda x: self.download_errback(x, url), meta={'stockId': stockId, 'year': year, 'season': season})
         else:
             pass
@@ -40,8 +41,7 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
         if not os.path.exists(dirPath):
             os.makedirs(dirPath)
         with open(dirPath + "/" + filename, 'wb') as html_file:
-            print(response.text)
-            time.sleep(100)
+            time.sleep(10)
             html_file.write(response.body)
             print("stockId: %s crawlered" %meta["stockId"])
 

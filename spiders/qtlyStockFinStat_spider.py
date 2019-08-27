@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
-import scrapy
-import itertools
-import sys
-import time
-import pandas as pd
-import numpy as np
-from io import StringIO
-from datetime import datetime
-from stockScrapyMongoDB.helpers import getStockIdArray, getLatestTimeFromFinStat, connect_mongo
-import os
-import json
+for i in range(1):
+    import scrapy
+    from scrapy.crawler import CrawlerProcess
+    import itertools
+    import sys
+    import time
+    import pandas as pd
+    import numpy as np
+    from io import StringIO
+    from datetime import datetime
+    from stockScrapyMongoDB.helpers import getStockIdArray, getLatestTimeFromFinStat, connect_mongo
+    import os
+    import json
+    import re
 
-Name = "qtlyStockFinancialStatement"
+Name = "qtlyStockFinancialStatement_New"
 
 class qtlyStockFinStat_Spider(scrapy.Spider):
     name = Name
@@ -29,7 +32,6 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
 
     def start_requests(self):
         self.collectionName = Name
-        #self.path = "/Users/vincent/stock_scrapy/stockScrapyMongoDB/finStatHtml/"
         self.path = "/home/wenping/stock_data/financial_statement/"
         yearNseasonList = os.listdir(self.path)
         dictList = []
@@ -49,6 +51,7 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
         print("urls to restore:",len(self.toRestoreUrlsDicList))
         for dic in self.toRestoreUrlsDicList:
             yield scrapy.Request(dic["url"], callback = self.parse , errback = lambda x: self.download_errback(x, url), meta={'stockId': dic["stockId"], 'year': dic["year"], 'season': dic["season"]})
+        # yield scrapy.Request(self.url, callback = self.parse , errback = lambda x: self.download_errback(x, url), meta={'stockId': dic["stockId"], 'year': dic["year"], 'season': dic["season"]})
 
     def getToRestoreUrls(self,dictList):
         db = connect_mongo()
@@ -70,15 +73,68 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
 
     def parse(self, response):
         meta = response.meta
+        if int(meta["year"]) < 2019:
+            dfs = pd.read_html(response.url)
+        else:
+            dfs = self.read_html2019(response.url)
+
         if len(response.text) < 10000:
             pass
         else:
-            dfs = pd.read_html(StringIO(response.text))
+            # dfs = pd.read_html(StringIO(response.text)
             for sheetType in ["BalanceSheet", "IncomeStatement", "CashFlows"]:
                 dic = self.getSheetsDict(dfs, meta["year"], meta["season"], meta["stockId"], sheetType)
                 for item in dic:
                     yield item
 
+    def remove_english(self, s):
+        result = re.sub(r'[a-zA-Z()]', "", s)
+        return result
+
+    def patch2019(self, df):
+        df = df.copy()
+        dfname = df.columns.levels[0][0]
+
+        df = df.iloc[:,1:].rename(columns={'會計項目Accounting Title':'會計項目'})
+
+
+        refined_name = df[(dfname,'會計項目')].str.split(" ").str[0].str.replace("　", "").apply(self.remove_english)
+
+        subdf = df[dfname].copy()
+        subdf['會計項目'] = refined_name
+        df[dfname] = subdf
+
+        newCol = []
+        for col in df.columns.levels[1]:
+            s = col.split('日2')
+            if len(s) > 1:
+                newCol.append(s[0]+'日')
+            else:
+                newCol.append(col)
+        newCol = pd.Index(newCol)
+
+        df.columns = pd.MultiIndex(levels=[newCol, df.columns.levels[0]],codes=[df.columns.codes[1], df.columns.codes[0]])
+
+        def neg(s):
+
+            if isinstance(s, float):
+                return s
+
+            if str(s) == 'nan':
+                return np.nan
+
+            s = s.replace(",", "")
+            if s[0] == '(':
+                return -float(s[1:-1])
+            else:
+                return float(s)
+
+        df.iloc[:,1:] = df.iloc[:,1:].applymap(neg)
+        return df
+
+    def read_html2019(self, file):
+        dfs = pd.read_html(file)
+        return [pd.DataFrame(), self.patch2019(dfs[0]), self.patch2019(dfs[1]), self.patch2019(dfs[2])]
 
     def getSheetsDict(self, dfs, year, season, stockId, sheetType):
         if sheetType == "BalanceSheet":
@@ -173,3 +229,19 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
 
     def download_errback(self, e, url):
         yield scrapy.Request(url, callback = self.parse, errback = lambda x: self.download_errback(x, url))
+
+
+# qtly = qtlyStockFinStat_Spider()
+# process = CrawlerProcess({
+#     'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)'
+# })
+# process.crawl(qtly)
+# process.start()
+# process.start()
+# process.start()
+# process.stop()
+# qtly.itemRecord
+# print(qtly.pdf)
+# print(qtly.resp)
+# qtly.resp.text
+# qtly.itemRecord
