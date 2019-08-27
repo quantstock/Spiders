@@ -27,7 +27,8 @@ class benchmarkSpider(scrapy.Spider):
         wantDaysArray = [datetime.datetime.strftime(d, "%Y%m%d") for d in wantDaysArray]
 
         for date in wantDaysArray: 
-            url = "http://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=%s"%date
+            #url = "http://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=%s"%date
+            url = "https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=%s&type=IND&_=1564939650827"%date
             yield scrapy.Request(url, meta = {"timestamp": date}, callback = self.parse , errback = lambda x: self.download_errback(x, url))        
 
     def parse(self, response):
