@@ -73,8 +73,9 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
 
     def parse(self, response):
         meta = response.meta
+        print(meta)
         if int(meta["year"]) < 2019:
-            dfs = pd.read_html(response.url)
+            dfs = pd.read_html(response.url, header=0)
         else:
             dfs = self.read_html2019(response.url)
 
@@ -113,7 +114,7 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
                 newCol.append(col)
         newCol = pd.Index(newCol)
 
-        df.columns = pd.MultiIndex(levels=[newCol, df.columns.levels[0]],codes=[df.columns.codes[1], df.columns.codes[0]])
+        df.columns = pd.MultiIndex(levels=[df.columns.levels[0], newCol],labels=[df.columns.labels[0], df.columns.labels[1]])
 
         def neg(s):
 
@@ -130,13 +131,15 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
                 return float(s)
 
         df.iloc[:,1:] = df.iloc[:,1:].applymap(neg)
+        df.columns = df.columns.droplevel()
         return df
 
     def read_html2019(self, file):
-        dfs = pd.read_html(file)
+        dfs = pd.read_html(file, header=[0, 1])
         return [pd.DataFrame(), self.patch2019(dfs[0]), self.patch2019(dfs[1]), self.patch2019(dfs[2])]
 
     def getSheetsDict(self, dfs, year, season, stockId, sheetType):
+        print(sheetType)
         if sheetType == "BalanceSheet":
             i = 1
         elif sheetType == "IncomeStatement":
@@ -150,19 +153,18 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
             df = dfs[i]
         except IndexError:
             pass
-        df.index=df["會計項目"].values[:,].T[0]
+        df.index=df["會計項目"].values[:,].T
         df = df.drop(["會計項目"], axis=1)
         df = df.apply(pd.to_numeric, errors='force')
         df = df[~df.index.duplicated(keep='first')]
         df = df.dropna().T
 
-        df["會計項目"] = np.array([list(s) for s in df.index.values])[:, 0]
+        df["會計項目"] = df.index.values
         df["stockId"] = stockId
         df["year"] = year
         df["season"] = season
         df["表格形式"] = sheetType
 
-        df.index = np.array([list(s) for s in df.index.values])[:, 0]
         dicList = list(json.loads(df.T.to_json()).values())
         # add up datetime
         for dic in dicList:
@@ -229,19 +231,3 @@ class qtlyStockFinStat_Spider(scrapy.Spider):
 
     def download_errback(self, e, url):
         yield scrapy.Request(url, callback = self.parse, errback = lambda x: self.download_errback(x, url))
-
-
-# qtly = qtlyStockFinStat_Spider()
-# process = CrawlerProcess({
-#     'USER_AGENT': 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)'
-# })
-# process.crawl(qtly)
-# process.start()
-# process.start()
-# process.start()
-# process.stop()
-# qtly.itemRecord
-# print(qtly.pdf)
-# print(qtly.resp)
-# qtly.resp.text
-# qtly.itemRecord
